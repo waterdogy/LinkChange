@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 )
 //62位字符表
@@ -27,25 +28,35 @@ var mu sync.RWMutex//操作数据库需要加锁
 
 func main(){
 	r := gin.Default()
+
+	//处理长链接转短链接
 	r.GET("/trans", func(c *gin.Context) {
-		raw := c.Query("addr")//得到查询长网址
+		raw := c.DefaultQuery("addr","")//得到查询长网址
+		//判断地址是否以http://或者https://开头
+		if ok1, ok2:=strings.HasPrefix(raw, "http://"),strings.HasPrefix(raw,"https://");!ok1&&!ok2{
+			c.String(http.StatusBadRequest, "Url Format Error!")//返回400和错误信息
+			return
+		}
 		var addr string
 		addr, err := transform(raw)//得到长网址对应的短网址
 		if err!=nil{//如果出错
 			c.String(http.StatusBadRequest, err.Error())//返回400和错误信息
+			return
 		}
-		addr =  "http://localhost:8000/trans/"+ addr
+		addr =  "http://localhost:8000/trans/"+ addr//将地址加上开头
 		c.JSON(http.StatusOK, gin.H{"shortAddr":addr,"longAddr":raw})//返回长网址和短网址给客户端
 	})
+
+	//处理短链接转长链接
 	r.GET("/trans/:addr", func(c *gin.Context) {
-		short := c.Param("addr")
-		long, ok:= stol[short]
+		short := c.Param("addr")//得到短网址
+		long, ok:= stol[short]//查询数据库
 		if !ok{
 			c.String(http.StatusNotFound, "addr %s doesn't exit!", short)//返回400和错误信息
 		}else{
-			c.Redirect(http.StatusMovedPermanently, long)
+			//返回长网址和短网址给客户端
+			c.JSON(http.StatusOK, gin.H{"shortAddr":"http://localhost:8000/trans/" + short,"longAddr":long})
 		}
-
 	})
 	r.Run(":8000")
 }
@@ -92,7 +103,6 @@ func checkValid(s [4]string)(string, bool){
 	}
 	return "",false
 }
-
 
 //生成32位MD5
 func MD5(s string) string{
