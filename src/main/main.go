@@ -28,7 +28,6 @@ var mu sync.RWMutex//操作数据库需要加锁
 
 func main(){
 	r := gin.Default()
-
 	//处理长链接转短链接
 	r.GET("/trans", func(c *gin.Context) {
 		raw := c.DefaultQuery("addr","")//得到查询长网址
