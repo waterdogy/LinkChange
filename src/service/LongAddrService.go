@@ -3,9 +3,9 @@ package service
 import (
 	"crypto/md5"
 	"dao"
-	"domain"
 	"encoding/hex"
 	"fmt"
+	"models"
 	"strconv"
 )
 
@@ -19,17 +19,20 @@ const(
 
 //将长链接转成短链接
 func TranLongToShort(raw string)(string, error){
-	if ok := dao.CheckLongAddr(raw);ok{
-		return dao.FindShortAddr(raw), nil
-	}
 	for{//循环直到找到不碰撞的字符串为止
+		if ok := dao.CheckLongAddr(raw);ok{
+			return dao.FindShortAddr(raw), nil
+		}
 		tmp, err := handleAddr(raw)//不存在就使用MD5算法得到4个字符串
 		if err !=nil{//如果有错误
 			return "", err
 		}
 		addr, ok := checkValid(tmp)
 		if ok{//找到可用字符串
-			dao.InsertAddr(domain.Addr{LongAddr: raw, ShortAddr: addr})//将数据插入数据库
+			ist := dao.InsertAddr(models.Addr{LongAddr: raw, ShortAddr: addr}) //将数据插入数据库
+			if !ist{
+				continue//插入失败重新处理
+			}
 			return addr,nil
 		}else{
 			raw = getMD5(raw)//没找到就用MD5加密后的字符串再加密
