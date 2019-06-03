@@ -18,24 +18,40 @@ const(
 )
 
 //将长链接转成短链接
-func TranLongToShort(raw string)(string, error){
+func TranLongToShort(long string)(string, error){
 	for{//循环直到找到不碰撞的字符串为止
-		if ok := dao.CheckLongAddr(raw);ok{
-			return dao.FindShortAddr(raw), nil
+		//先去缓存中查找
+		if ok := checkRedisLong(long); ok{
+			return getRedisShort(long), nil
 		}
-		tmp, err := handleAddr(raw)//不存在就使用MD5算法得到4个字符串
+		//缓存没有就去数据库查找
+		if ok := dao.CheckLongAddr(long);ok{
+			//找到后添加缓存
+			short := dao.FindShortAddr(long)
+			err := setCache(long, short)
+			if err!=nil{
+				return short, fmt.Errorf("setCache fail %v", err)
+			}
+			return short, nil
+		}
+		tmp, err := handleAddr(long)//不存在就使用MD5算法得到4个字符串
 		if err !=nil{//如果有错误
 			return "", err
 		}
-		addr, ok := checkValid(tmp)
+		short, ok := checkValid(tmp)
 		if ok{//找到可用字符串
-			ist := dao.InsertAddr(models.Addr{LongAddr: raw, ShortAddr: addr}) //将数据插入数据库
+			ist := dao.InsertAddr(models.Addr{LongAddr: long, ShortAddr: short}) //将数据插入数据库
 			if !ist{
 				continue//插入失败重新处理
 			}
-			return addr,nil
+			//找到后添加缓存
+			err := setCache(long, short)
+			if err!=nil{
+				return short, fmt.Errorf("setCache fail %v", err)
+			}
+			return short, nil
 		}else{
-			raw = getMD5(raw)//没找到就用MD5加密后的字符串再加密
+			long = getMD5(long)//没找到就用MD5加密后的字符串再加密
 		}
 	}
 }

@@ -8,7 +8,8 @@ import (
 	"utils"
 )
 
-var confFilename = "D:/goIdea/src/conf/app.ini"
+var confFilename = "D:/LinkChange/src/conf/app.ini"
+var tp, user, pw, tableName string
 
 //初始化建表
 func init(){
@@ -21,13 +22,13 @@ func init(){
 		return
 	}
 	//数据库类型
-	tp := iniParser.GetString("database","Type")
+	tp = iniParser.GetString("database","Type")
 	//数据库用户名
-	user := iniParser.GetString("database","User")
+	user = iniParser.GetString("database","User")
 	//数据库密码
-	pw := iniParser.GetString("database","Password")
+	pw = iniParser.GetString("database","Password")
 	//数据库表名
-	tableName := iniParser.GetString("database","Table")
+	tableName = iniParser.GetString("database","Table")
 	//数据库驱动
 	dr := user+":"+pw+"@/"+tableName+"?charset=utf8&parseTime=True&loc=Local"
 	db, err := gorm.Open(tp, dr)
@@ -46,13 +47,9 @@ func init(){
 
 //查询短地址是否存在
 func CheckShortAddr(short string) bool{
-	//先到redis缓存中查找
-	if ok := checkRedisShort(short);ok{
-		return true
-	}
-	//缓存中没有去数据库查找
 	var count int
-	db, err := gorm.Open("mysql", "root:@/test?charset=utf8&parseTime=True&loc=Local")
+	dr := user+":"+pw+"@/"+tableName+"?charset=utf8&parseTime=True&loc=Local"
+	db, err := gorm.Open(tp, dr)
 	defer db.Close()
 	if err!=nil{
 		panic("连接数据库失败")
@@ -63,32 +60,23 @@ func CheckShortAddr(short string) bool{
 
 //根据短地址返回长地址
 func FindLongAddr(short string) string{
-	//先到redis缓存中查找
-	if long:=getRedisLong(short);long!=""{
-		return long
-	}
-	//缓存没有就去数据库中找
 	var addr models.Addr
-	db, err := gorm.Open("mysql", "root:@/test?charset=utf8&parseTime=True&loc=Local")
+	dr := user+":"+pw+"@/"+tableName+"?charset=utf8&parseTime=True&loc=Local"
+	db, err := gorm.Open(tp, dr)
 	defer db.Close()
 	if err!=nil{
 		panic("连接数据库失败")
 	}
 	db.Model(&models.Addr{}).Where("short_addr=?", short).First(&addr)
-	//查找完添加缓存
-	_ = setCache(addr.LongAddr, addr.ShortAddr)
 	return addr.LongAddr
 }
 
 //查询长地址是否存在
 func CheckLongAddr(long string) bool{
-	//先到redis缓存中查找
-	if ok:= checkRedisLong(long); ok{
-		return true
-	}
 	//缓存中没有去数据库查找
 	var count int
-	db, err := gorm.Open("mysql", "root:@/test?charset=utf8&parseTime=True&loc=Local")
+	dr := user+":"+pw+"@/"+tableName+"?charset=utf8&parseTime=True&loc=Local"
+	db, err := gorm.Open(tp, dr)
 	defer db.Close()
 	if err!=nil{
 		panic("连接数据库失败")
@@ -99,26 +87,21 @@ func CheckLongAddr(long string) bool{
 
 //根据长地址返回短地址
 func FindShortAddr(long string) string{
-	//先到redis缓存中查找
-	if short:=getRedisShort(long); short!=""{
-		return short
-	}
-	//缓存没有去数据库查找
 	var addr models.Addr
-	db, err := gorm.Open("mysql", "root:@/test?charset=utf8&parseTime=True&loc=Local")
+	dr := user+":"+pw+"@/"+tableName+"?charset=utf8&parseTime=True&loc=Local"
+	db, err := gorm.Open(tp, dr)
 	defer db.Close()
 	if err!=nil{
 		panic("连接数据库失败")
 	}
 	db.Model(&models.Addr{}).Where("long_addr=?", long).First(&addr)
-	//查找完添加缓存
-	_ = setCache(addr.LongAddr, addr.ShortAddr)
 	return addr.ShortAddr
 }
 
 //将新的地址映射关系存入数据库
 func InsertAddr(a models.Addr) bool{
-	db, err := gorm.Open("mysql", "root:@/test?charset=utf8&parseTime=True&loc=Local")
+	dr := user+":"+pw+"@/"+tableName+"?charset=utf8&parseTime=True&loc=Local"
+	db, err := gorm.Open(tp, dr)
 	defer db.Close()
 	if err!=nil{
 		panic("连接数据库失败")
@@ -127,6 +110,5 @@ func InsertAddr(a models.Addr) bool{
 	if err!=nil{
 		return false
 	}
-	_ = setCache(a.LongAddr, a.ShortAddr)
 	return true
 }

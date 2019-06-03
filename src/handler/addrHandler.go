@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"consumer"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"service"
@@ -9,6 +10,7 @@ import (
 
 //长链接转短链接处理器
 func LongAddrHandler(c *gin.Context){
+	service.AsyncProducer("here comes a request!")
 	raw := c.DefaultQuery("addr","")//得到查询长网址
 	//判断地址是否以http://或者https://开头
 	if ok1, ok2:=strings.HasPrefix(raw, "http://"),strings.HasPrefix(raw,"https://");!ok1&&!ok2{
@@ -21,18 +23,20 @@ func LongAddrHandler(c *gin.Context){
 		return
 	}
 	addr =  "http://localhost:8000/trans/"+ addr//将地址加上开头
-	c.JSON(http.StatusOK, gin.H{"shortAddr":addr,"longAddr":raw})//返回长网址和短网址给客户端
+	c.JSON(http.StatusOK, gin.H{"shortAddr":addr,"longAddr":raw,"visitCount":consumer.VisitCount})//返回长网址和短网址给客户端
 }
 
 //短链接转长链接处理器
 func ShortAddrHandler(c *gin.Context){
+	service.AsyncProducer("here comes a request!")
 	short := c.Param("addr")//得到短网址
 	long, ok:= service.TranShortToLong(short)//查询数据库是否存有短地址
 	if !ok{
 		c.String(http.StatusNotFound, "addr %s doesn't exit!", short)//返回400和错误信息
 	}else{
 		//返回长网址和短网址给客户端
-		c.JSON(http.StatusOK, gin.H{"shortAddr":"http://localhost:8000/trans/" + short,"longAddr":long})
+		c.JSON(http.StatusOK, gin.H{"shortAddr":"http://localhost:8000/trans/" + short,"longAddr":long,
+			"visitCount":consumer.VisitCount})
 	}
 }
 
